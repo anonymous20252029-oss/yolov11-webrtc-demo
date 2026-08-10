@@ -6,7 +6,7 @@ from ultralytics import YOLO
 from typing import Tuple, Dict
 
 class AcceleratedYOLOv11Engine:
-    def __init__(self, model_path: str = "yolov11n.pt", conf_threshold: float = 0.40):
+    def __init__(self, model_path: str = "models/best.onnx", conf_threshold: float = 0.40):
         self.conf_threshold = conf_threshold
         self.model = YOLO(model_path)
         dummy = np.zeros((640, 640, 3), dtype=np.uint8)
