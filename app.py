@@ -1,8 +1,8 @@
 import streamlit as st
 import cv2
 import tempfile
-import numpy as np
 import time
+import numpy as np
 from queue_manager import SingleFrameQueueManager
 from inference import AcceleratedYOLOv11Engine
 
@@ -27,65 +27,49 @@ engine = get_engine(conf_thresh)
 
 col1, col2 = st.columns([0.65, 0.35])
 
-# Option A: Process Sample / OBS Recorded / Uploaded Video Feed
+# Option A: Process Video File or Local Camera
 if input_mode == "Video File / Sample Stream":
     with col1:
         st.subheader("📹 Real-Time Media Stream Processing")
         uploaded_file = st.file_uploader("Upload MP4 / MOV Video (or use default sample)", type=["mp4", "mov", "avi"])
-        
-        if uploaded_file is not None:
-            tfile = tempfile.NamedTemporaryFile(delete=False)
-            tfile.write(uploaded_file.read())
-            video_path = tfile.name
-        else:
-            st.info("💡 No file uploaded. Running live inference loop on virtual stream...")
-            # Fallback synthetic dummy frame or local sample loop
-            video_path = None
-
         run_stream = st.checkbox("▶ Start Live Stream Inference Loop")
         st_frame = st.empty()
 
         if run_stream:
+            # Safely initialize video source
             if uploaded_file is not None:
                 tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
                 tfile.write(uploaded_file.read())
-                video_path = tfile.name
+                video_source = tfile.name
             else:
-                video_path = 0 # Default local webcam / OBS virtual camera
+                video_source = 0 # Default local camera / stream
 
-            cap = cv2.VideoCapture(video_path)
-    
-        # Verify camera / video file opened correctly
-        if not cap.isOpened():
-            st.error("Error: Could not open video source. Please upload a standard MP4 file.")
-        else:
-            while cap.isOpened() and run_stream:
-                ret, frame = cap.read()
-                if not ret or frame is None:
-                    # Loop back to start if video reaches the end
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    continue
+            cap = cv2.VideoCapture(video_source)
 
-                # Ensure frame is valid and non-empty (mean pixel value > 0)
-                if frame.mean() == 0:
-                    continue
+            if not cap.isOpened():
+                st.error("Error: Could not open video source. Please upload a standard MP4 file.")
+            else:
+                while cap.isOpened() and run_stream:
+                    ret, frame = cap.read()
+                    if not ret or frame is None:
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # Loop video
+                        continue
 
-                processed_img, metrics = engine.process_frame(frame)
-            
-                # Burn DYNAMIC HUD text onto frame
-                hud_line1 = f"Latency: {metrics['total_ms']:.2f} ms | FPS: {metrics['fps']:.1f}"
-                hud_line2 = f"Pre: {metrics['preprocess_ms']:.2f}ms | Infer: {metrics['inference_ms']:.2f}ms | NMS: {metrics['postprocess_ms']:.2f}ms"
-                
-                cv2.putText(processed_img, hud_line1, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                cv2.putText(processed_img, hud_line2, (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
-                
-                # Convert BGR to RGB and render in Streamlit container
-                st_frame.image(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
-                time.sleep(0.01)
-            
-            cap.release()
+                    processed_img, metrics = engine.process_frame(frame)
+                    
+                    # Burn DYNAMIC real-time telemetry text onto the frame
+                    hud_line1 = f"Latency: {metrics['total_ms']:.2f} ms | FPS: {metrics['fps']:.1f}"
+                    hud_line2 = f"Pre: {metrics['preprocess_ms']:.2f}ms | Infer: {metrics['inference_ms']:.2f}ms | NMS: {metrics['postprocess_ms']:.2f}ms"
+                    
+                    cv2.putText(processed_img, hud_line1, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                    cv2.putText(processed_img, hud_line2, (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                    
+                    # Render using container width (Streamlit 1.30+ compliant)
+                    st_frame.image(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
+                    time.sleep(0.01)
+                cap.release()
 
-# Option B: Fallback to WebRTC Browser Stream
+# Option B: WebRTC Browser Stream
 else:
     with col1:
         st.subheader("📹 Real-Time WebRTC Media Stream")
@@ -111,7 +95,12 @@ else:
             return frame
 
         RTC_CONFIG = RTCConfiguration(
-            {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+            {
+                "iceServers": [
+                    {"urls": ["stun:stun.l.google.com:19302"]},
+                    {"urls": ["stun:global.stun.twilio.com:3478"]},
+                ]
+            }
         )
 
         webrtc_streamer(
@@ -122,7 +111,7 @@ else:
             media_stream_constraints={"video": True, "audio": False},
         )
 
-# Right Panel Telemetry Display
+# Right Telemetry Dashboard
 with col2:
     st.subheader("📊 Hardware Performance Telemetry")
     st.metric("Target Budget Ceiling", "16.67 ms (60 FPS Limit)")
