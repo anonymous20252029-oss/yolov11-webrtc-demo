@@ -16,7 +16,7 @@ st.caption("Double-Blind Peer Review Demonstration Artifact")
 
 # 1. Sidebar Calibration Controls
 st.sidebar.header("🎛 Calibration & Input Settings")
-conf_thresh = st.sidebar.slider("Confidence Threshold ($T_{conf}$)", 0.05, 0.95, 0.40, 0.05)
+conf_thresh = st.sidebar.slider("Confidence Threshold ($T_{conf}$)", 0.05, 0.95, 0.25, 0.05)
 input_mode = st.sidebar.radio("Select Ingestion Mode:", ["Video File / Sample Stream", "WebRTC Webcam"])
 
 @st.cache_resource
@@ -55,14 +55,18 @@ if input_mode == "Video File / Sample Stream":
                         cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # Loop video
                         continue
 
+                    # Auto-rotate vertical mobile MOV videos if recorded sideways
+                    h_orig, w_orig = frame.shape[:2]
+                    if h_orig < w_orig and uploaded_file is not None and "MOV" in uploaded_file.name.upper():
+                        frame = cv2.rotate(frame, cv2.ROTATE_90_CLOCKWISE)
+
                     processed_img, metrics = engine.process_frame(frame)
                     
-                    # --- LAYOUT FIX: Scale tall/vertical videos so they fit inside column 1 ---
+                    # LAYOUT FIX: Scale tall/vertical frames so they fit inside Column 1
                     h, w = processed_img.shape[:2]
                     if h > 500:
                         scale = 500.0 / h
                         processed_img = cv2.resize(processed_img, (int(w * scale), 500))
-                    # ------------------------------------------------------------------------
 
                     # Burn DYNAMIC real-time telemetry text onto the frame
                     hud_line1 = f"Latency: {metrics['total_ms']:.2f} ms | FPS: {metrics['fps']:.1f}"
@@ -106,6 +110,11 @@ else:
                 "iceServers": [
                     {"urls": ["stun:stun.l.google.com:19302"]},
                     {"urls": ["stun:global.stun.twilio.com:3478"]},
+                    {
+                        "urls": ["turn:openrelay.metered.ca:80"],
+                        "username": "openrelay",
+                        "credential": "openrelay",
+                    },
                 ]
             }
         )
