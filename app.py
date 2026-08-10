@@ -15,7 +15,7 @@ RTC_CONFIG = RTCConfiguration(
             {"urls": ["stun:stun4.l.google.com:19302"]},
         ]
     }
-)
+) 
 
 st.set_page_config(page_title="Anonymous Demo: YOLOv11-WebRTC Streaming", layout="wide")
 st.title("⚡ Sub-15ms YOLOv11-WebRTC Visual Analytics Engine")
