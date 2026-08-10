@@ -53,20 +53,20 @@ if input_mode == "Video File / Sample Stream":
 
             while cap.isOpened() and run_stream:
                 ret, frame = cap.read()
-                if not ret:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # Loop video continuously
+                if not ret or frame is None:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # Loop back to beginning
                     continue
 
                 processed_img, metrics = engine.process_frame(frame)
         
-                # Overlay DYNAMIC telemetry text onto the video frame
+                # Burn HUD text onto processed frame
                 hud_line1 = f"Latency: {metrics['total_ms']:.2f} ms | FPS: {metrics['fps']:.1f}"
                 hud_line2 = f"Pre: {metrics['preprocess_ms']:.2f}ms | Infer: {metrics['inference_ms']:.2f}ms | NMS: {metrics['postprocess_ms']:.2f}ms"
                 
                 cv2.putText(processed_img, hud_line1, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                 cv2.putText(processed_img, hud_line2, (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
                 
-                # Render processed frame using correct Streamlit 1.30+ argument
+                # Convert BGR to RGB and render in Streamlit container
                 st_frame.image(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
                 time.sleep(0.01)
             cap.release()
