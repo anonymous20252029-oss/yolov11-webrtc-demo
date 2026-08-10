@@ -5,6 +5,18 @@ import cv2
 from queue_manager import SingleFrameQueueManager
 from inference import AcceleratedYOLOv11Engine
 
+RTC_CONFIG = RTCConfiguration(
+    {
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]},
+            {"urls": ["stun:stun1.l.google.com:19302"]},
+            {"urls": ["stun:stun2.l.google.com:19302"]},
+            {"urls": ["stun:stun3.l.google.com:19302"]},
+            {"urls": ["stun:stun4.l.google.com:19302"]},
+        ]
+    }
+)
+
 st.set_page_config(page_title="Anonymous Demo: YOLOv11-WebRTC Streaming", layout="wide")
 st.title("⚡ Sub-15ms YOLOv11-WebRTC Visual Analytics Engine")
 st.caption("Double-Blind Peer Review Demonstration Artifact")
@@ -40,20 +52,9 @@ with col1:
     webrtc_streamer(
         key="anonymous-webrtc-stream",
         mode=WebRtcMode.SENDRECV,
-        RTC_CONFIG = RTCConfiguration(
-            {
-            "iceServers": [
-                {"urls": ["stun:stun.l.google.com:19302"]},
-                {"urls": ["stun:stun1.l.google.com:19302"]},
-                {"urls": ["stun:stun2.l.google.com:19302"]},
-                {"urls": ["stun:stun3.l.google.com:19302"]},
-                {"urls": ["stun:stun4.l.google.com:19302"]},
-                ]
-            }
-        ),
+        rtc_configuration=RTC_CONFIG,
         video_frame_callback=video_frame_callback,
         media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
     )
 
 with col2:
