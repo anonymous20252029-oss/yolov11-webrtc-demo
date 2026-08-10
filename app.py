@@ -46,20 +46,33 @@ if input_mode == "Video File / Sample Stream":
         st_frame = st.empty()
 
         if run_stream:
-            if video_path:
-                cap = cv2.VideoCapture(video_path)
+            if uploaded_file is not None:
+                tfile = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
+                tfile.write(uploaded_file.read())
+                video_path = tfile.name
             else:
-                cap = cv2.VideoCapture(0)
+                video_path = 0 # Default local webcam / OBS virtual camera
 
+            cap = cv2.VideoCapture(video_path)
+    
+        # Verify camera / video file opened correctly
+        if not cap.isOpened():
+            st.error("Error: Could not open video source. Please upload a standard MP4 file.")
+        else:
             while cap.isOpened() and run_stream:
                 ret, frame = cap.read()
                 if not ret or frame is None:
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # Loop back to beginning
+                    # Loop back to start if video reaches the end
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    continue
+
+                # Ensure frame is valid and non-empty (mean pixel value > 0)
+                if frame.mean() == 0:
                     continue
 
                 processed_img, metrics = engine.process_frame(frame)
-        
-                # Burn HUD text onto processed frame
+            
+                # Burn DYNAMIC HUD text onto frame
                 hud_line1 = f"Latency: {metrics['total_ms']:.2f} ms | FPS: {metrics['fps']:.1f}"
                 hud_line2 = f"Pre: {metrics['preprocess_ms']:.2f}ms | Infer: {metrics['inference_ms']:.2f}ms | NMS: {metrics['postprocess_ms']:.2f}ms"
                 
@@ -69,6 +82,7 @@ if input_mode == "Video File / Sample Stream":
                 # Convert BGR to RGB and render in Streamlit container
                 st_frame.image(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
                 time.sleep(0.01)
+            
             cap.release()
 
 # Option B: Fallback to WebRTC Browser Stream
