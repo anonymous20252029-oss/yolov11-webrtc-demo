@@ -52,7 +52,7 @@ if input_mode == "Video File / Sample Stream":
                 cap = cv2.VideoCapture(0)
 
             while cap.isOpened() and run_stream:
-               ret, frame = cap.read()
+                ret, frame = cap.read()
                 if not ret:
                     cap.set(cv2.CAP_PROP_POS_FRAMES, 0) # Loop video continuously
                     continue
