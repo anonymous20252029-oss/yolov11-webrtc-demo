@@ -40,7 +40,17 @@ with col1:
     webrtc_streamer(
         key="anonymous-webrtc-stream",
         mode=WebRtcMode.SENDRECV,
-        rtc_configuration=RTC_CONFIG,
+        RTC_CONFIG = RTCConfiguration(
+            {
+            "iceServers": [
+                {"urls": ["stun:stun.l.google.com:19302"]},
+                {"urls": ["stun:stun1.l.google.com:19302"]},
+                {"urls": ["stun:stun2.l.google.com:19302"]},
+                {"urls": ["stun:stun3.l.google.com:19302"]},
+                {"urls": ["stun:stun4.l.google.com:19302"]},
+                ]
+            }
+        ),
         video_frame_callback=video_frame_callback,
         media_stream_constraints={"video": True, "audio": False},
         async_processing=True,
