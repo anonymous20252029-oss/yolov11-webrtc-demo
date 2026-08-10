@@ -25,9 +25,9 @@ def get_engine(conf: float):
 
 engine = get_engine(conf_thresh)
 
-col1, col2 = st.columns([0.65, 0.35])
+col1, col2 = st.columns([0.60, 0.40])
 
-# Option A: Process Video File or Local Camera
+# Option A: Process Video File or Local Camera Stream
 if input_mode == "Video File / Sample Stream":
     with col1:
         st.subheader("📹 Real-Time Media Stream Processing")
@@ -47,7 +47,7 @@ if input_mode == "Video File / Sample Stream":
             cap = cv2.VideoCapture(video_source)
 
             if not cap.isOpened():
-                st.error("Error: Could not open video source. Please upload a standard MP4 file.")
+                st.error("Error: Could not open video source. Please upload a valid MP4 file.")
             else:
                 while cap.isOpened() and run_stream:
                     ret, frame = cap.read()
@@ -57,15 +57,22 @@ if input_mode == "Video File / Sample Stream":
 
                     processed_img, metrics = engine.process_frame(frame)
                     
+                    # --- LAYOUT FIX: Scale tall/vertical videos so they fit inside column 1 ---
+                    h, w = processed_img.shape[:2]
+                    if h > 500:
+                        scale = 500.0 / h
+                        processed_img = cv2.resize(processed_img, (int(w * scale), 500))
+                    # ------------------------------------------------------------------------
+
                     # Burn DYNAMIC real-time telemetry text onto the frame
                     hud_line1 = f"Latency: {metrics['total_ms']:.2f} ms | FPS: {metrics['fps']:.1f}"
                     hud_line2 = f"Pre: {metrics['preprocess_ms']:.2f}ms | Infer: {metrics['inference_ms']:.2f}ms | NMS: {metrics['postprocess_ms']:.2f}ms"
                     
-                    cv2.putText(processed_img, hud_line1, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-                    cv2.putText(processed_img, hud_line2, (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
+                    cv2.putText(processed_img, hud_line1, (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.putText(processed_img, hud_line2, (20, 65), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 255, 255), 1)
                     
-                    # Render using container width (Streamlit 1.30+ compliant)
-                    st_frame.image(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
+                    # Render image safely inside container
+                    st_frame.image(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=False)
                     time.sleep(0.01)
                 cap.release()
 
@@ -111,7 +118,7 @@ else:
             media_stream_constraints={"video": True, "audio": False},
         )
 
-# Right Telemetry Dashboard
+# Right Telemetry Dashboard Panel
 with col2:
     st.subheader("📊 Hardware Performance Telemetry")
     st.metric("Target Budget Ceiling", "16.67 ms (60 FPS Limit)")
